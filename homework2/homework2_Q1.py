@@ -64,13 +64,10 @@ def get_3_closest_words(input_word_lists, model_object):
 	results_df = pd.DataFrame()
 
 	for i, word in enumerate(input_word_lists):
-
 		result = model_object.most_similar(word)[:3]
-
 		results_df[word] = result
 
 	results_df.index = ['1st closest word', '2nd closest word', '3rd closest word']
-
 	print(results_df)
 
 	return results_df
