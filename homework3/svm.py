@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import re
 import string
+import multiprocessing
 from nltk.tokenize import word_tokenize
 from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
@@ -13,7 +14,7 @@ from sklearn.metrics import confusion_matrix
 
 def train_and_eval(ngram_range_low=1, ngram_range_hi=1):
 
-	data_df = pd.read_csv('./cleaned_100.csv').drop(columns=['Unnamed: 0'], axis=1)
+	data_df = pd.read_csv('./cleaned.csv').drop(columns=['Unnamed: 0'], axis=1)
 
 	X_train, X_test, y_train, y_test = train_test_split(data_df['text'], data_df['star'], test_size = 0.2, random_state=42)
 
@@ -62,10 +63,6 @@ def train_and_eval(ngram_range_low=1, ngram_range_hi=1):
 			file.write("micro-f1 is:\n")
 			file.write(np.array2string(micro_f1)+'\n')
 
-
-def convertTuple(tup):
-	str =  ''.join(tup)
-	return str
 
 
 if __name__ == "__main__":

@@ -1,74 +1,100 @@
 import numpy as np
 import pandas as pd
+import json
 import re
 import string
-from nltk.tokenize import word_tokenize
+import fasttext
 from sklearn.model_selection import train_test_split
-from sklearn.svm import LinearSVC
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import confusion_matrix
+from nltk.tokenize import word_tokenize
 
 
-def train_and_eval(ngram_range_low=1, ngram_range_hi=1):
 
-	data_df = pd.read_csv('./cleaned_100.csv').drop(columns=['Unnamed: 0'], axis=1)
+def preprocess_fasttext():
 
-	X_train, X_test, y_train, y_test = train_test_split(data_df['text'], data_df['star'], test_size = 0.2, random_state=42)
+	# organize the input text in fasttext required format, which is:__label__1 text
+	reviews = open('yelp_dataset/yelp_academic_dataset_review.json', encoding="utf8").readlines()[:500000]
+	fasttext_entry_list =[]
+	for review in reviews:
+		star, text_cleaned = process_one_review_fasttext(review)
+		entry_fasttext = '__label__' + str(star) + ' ' + text_cleaned
+		fasttext_entry_list.append(entry_fasttext)
 
-	pipe = Pipeline([('count', CountVectorizer(ngram_range=(ngram_range_low,ngram_range_hi))),
-					 ('tfid', TfidfTransformer())]).fit(X_train)
-	# transform input corpus into tf_idf representation
-	X_train_tfidf = pipe.transform(X_train)
+	# do a train test split
+	fasttext_train = fasttext_entry_list[0:400000]
+	len(fasttext_train)
+	fasttext_test = fasttext_entry_list[400001:500000]
+	len(fasttext_test)
 
-	svm_c_list = [1,5]
-	for svm_c in svm_c_list:
-		# fit logistic regression model
-		clf = LinearSVC(C=svm_c, random_state=1).fit(X_train_tfidf, y_train)
+	with open('./fasttest_data/fasttext_train.txt', 'w') as f_train:
+		for item in fasttext_train:
+			f_train.write("%s\n" % item)
 
-		# evaluate model performance on test set
-		X_test_tfidf = pipe.transform(X_test)
-		y_pred = clf.predict(X_test_tfidf)
-
-		# get performance measures
-		cm = confusion_matrix(y_test,y_pred,labels=[1,2,3,4,5])
-		# precision, recall, f1 is represented by a numpy array for 5 classes
-		precision = np.diag(cm)/np.sum(cm,axis=0)
-		recall = np.diag(cm)/np.sum(cm,axis=1)
-		f1 = 2 * np.multiply(precision,recall)/(precision+recall)
-		# aggregate TP for all classes and compute micro_f1
-		micro_f1 = np.sum(np.diag(cm))/np.sum(np.sum(cm,axis=0))
-
-		print("precision, recall, f1 for all 5 classes:")
-		print(precision)
-		print(recall)
-		print(f1)
-		print("micro_f1 is:")
-		print(micro_f1)
-
-		with open('performance_results.txt', 'a') as file:
-			file.write("Linear SVM Model:\n")
-			file.write("Model parameters c:\n")
-			file.write(str(svm_c)+'\n')
-			file.write("ngram parameter is:\n")
-			file.write(str(ngram_range_low)+str(ngram_range_hi)+'\n')
-			file.write("precision for 5 classes is:\n")
-			file.write(np.array2string(precision)+'\n')
-			file.write("recall for 5 classes is:\n")
-			file.write(np.array2string(recall)+'\n')
-			file.write("f1 for 5 classes is:\n")
-			file.write(np.array2string(f1)+'\n')
-			file.write("micro-f1 is:\n")
-			file.write(np.array2string(micro_f1)+'\n')
+	with open('./fasttest_data/fasttext_test.txt', 'w') as f_test:
+		for item in fasttext_test:
+			f_test.write("%s\n" % item)
 
 
-def convertTuple(tup):
-	str =  ''.join(tup)
-	return str
+
+def process_one_review_fasttext(review):
+	"""
+	process each review, extract lable and text
+	:param texts: input list of texts, each is one review
+	:return:
+	"""
+	review_dict = json.loads(review)
+	# (2) get number of labels
+	star = review_dict['stars']
+	text = review_dict['text']
+	#
+	return star, text
+
 
 
 if __name__ == "__main__":
 
-	train_and_eval(ngram_range_low=1, ngram_range_hi=1)
-	train_and_eval(ngram_range_low=1, ngram_range_hi=2)
+	preprocess_fasttext()
+	# I experimented with following hyper-parameters
+	# lr
+	# epoch (default is 5)
+	# wordNgrams
+
+	# Experiment 1:
+	model = fasttext.train_supervised(input='./fasttest_data/fasttext_train.txt',lr=1.0,epoch=5)
+
+	# get model performance
+	result = model.test('./fasttest_data/fasttext_test.txt')
+	precision = result[1]
+	recall = result[2]
+	print("F1 score: %0.4f" % (2 * precision * recall / (precision + recall)))
+	# f1-score is 0.6355
+
+	# Experiment 2:
+	model = fasttext.train_supervised(input='./fasttest_data/fasttext_train.txt', lr=1.0, epoch=25)
+
+	# get model performance
+	result = model.test('./fasttest_data/fasttext_test.txt')
+	precision = result[1]
+	recall = result[2]
+	print("F1 score: %0.4f" % (2 * precision * recall / (precision + recall)))
+	# F1 score is 0.6102, model starts to overfit
+
+	# Experiment 3:
+	model = fasttext.train_supervised(input='./fasttest_data/fasttext_train.txt', lr=1.0, epoch=5, wordNgrams=2)
+
+	# get model performance
+	result = model.test('./fasttest_data/fasttext_test.txt')
+	precision = result[1]
+	recall = result[2]
+	print("F1 score: %0.4f" % (2 * precision * recall / (precision + recall)))
+	# F1 score is 0.6300
+
+	# model = fasttext.train_supervised(input='./fasttext_train.txt',lr=1.0,epoch=25)
+	#
+	# # get model performance
+	# result = model.test('./fasttext_test.txt')
+	# precision = result[1]
+	# recall = result[2]
+	# print("F1 score: %0.4f" % (2 * precision * recall / (precision + recall)))
+
+
+

@@ -46,7 +46,7 @@ def clean_and_tokenize(text):
 
 
 def preprocess():
-	reviews = open('yelp_dataset/yelp_academic_dataset_review.json', encoding="utf8").readlines()[:100]
+	reviews = open('yelp_dataset/yelp_academic_dataset_review.json', encoding="utf8").readlines()[:500000]
 	star_list = []
 	text_list = []
 	for review in reviews:
@@ -56,7 +56,7 @@ def preprocess():
 
 	# save to a dataframe and then to csv
 	cleaned = pd.DataFrame(list(zip(text_list,star_list)), columns=['text','star'])
-	cleaned.to_csv('./cleaned_100.csv')
+	cleaned.to_csv('./cleaned.csv')
 
 
 if __name__ == "__main__":
