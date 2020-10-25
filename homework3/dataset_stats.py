@@ -52,6 +52,8 @@ def get_stats():
 	star_cnt_list =[]
 	for i in list(set(star_list)):
 		star_cnt_list.append(star_list.count(i))
+	print("count for each star:")
+	print(star_cnt_list)
 	# plot the distribution
 	plt.bar(list(set(star_list)),star_cnt_list,label='lable (stars) distribution')
 	plt.savefig('./label_distribution.png')
